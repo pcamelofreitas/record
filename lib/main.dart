@@ -1,9 +1,12 @@
+import 'dart:async';
 import 'dart:io';
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as p;
 import 'package:record/record.dart';
 import 'package:audioplayers/audioplayers.dart';
+import 'package:web_socket_channel/io.dart';
 
 void main() {
   runApp(MaterialApp(home: RecordOne()));
@@ -22,11 +25,49 @@ class _RecordOneState extends State<RecordOne> {
   List<FileSystemEntity> recordings = [];
   bool isRecording = false;
   String? playingPath;
+  IOWebSocketChannel? channel;
 
   @override
   void initState() {
     super.initState();
     _loadRecordings();
+  }
+
+  StreamSubscription<Uint8List>? _subscription;
+
+  Future<void> startStream() async {
+    print('Iniciando stream...');
+    final hasPermission = await record.hasPermission();
+    if (!hasPermission) return;
+
+    Stream<Uint8List> stream = await record.startStream(
+      RecordConfig(
+        encoder: AudioEncoder.wav,
+        sampleRate: 16000,
+        numChannels: 1,
+      ),
+    );
+    channel = IOWebSocketChannel.connect(
+      'ws://192.168.1.3:8080/websocket/audio',
+    );
+
+    _subscription = stream.listen((data) {
+      if (channel == null) {
+        print('Canal não inicializado');
+        return;
+      }
+      print('Stream data: ${data.length} bytes');
+      channel?.sink.add(data); // Envia os bytes diretamente
+    });
+
+    print('Stream iniciado');
+  }
+
+  Future<void> stopStream() async {
+    await record.stop();
+    await _subscription?.cancel();
+    await channel?.sink.close();
+    print('Stream parado');
   }
 
   Future<String> _getDirectoryPath() async {
@@ -76,7 +117,6 @@ class _RecordOneState extends State<RecordOne> {
   }
 
   Future<void> _playRecording(String path) async {
-    print('CADE');
     if (playingPath == path) {
       await player.stop();
       setState(() => playingPath = null);
@@ -145,6 +185,7 @@ class _RecordOneState extends State<RecordOne> {
   @override
   void dispose() {
     player.dispose();
+    stopStream();
     super.dispose();
   }
 
@@ -164,42 +205,67 @@ class _RecordOneState extends State<RecordOne> {
 
         child: Icon(isRecording ? Icons.stop : Icons.mic),
       ),
-      body: ListView.separated(
-        itemCount: recordings.length,
-        itemBuilder: (context, index) {
-          final file = recordings[index];
-          final name = p.basename(file.path);
-          final isPlaying = file.path == playingPath;
+      body: PageView(
+        children: [
+          ListView.separated(
+            itemCount: recordings.length,
+            itemBuilder: (context, index) {
+              final file = recordings[index];
+              final name = p.basename(file.path);
+              final isPlaying = file.path == playingPath;
 
-          return ListTile(
-            title: Text(name),
-            onTap: () => _playRecording(file.path),
-            subtitle: Text(
-              isPlaying ? 'Reproduzindo...' : 'Toque para reproduzir',
-              style: TextStyle(color: isPlaying ? Colors.green : Colors.black),
-            ),
-            leading: IconButton(
-              icon: Icon(isPlaying ? Icons.stop : Icons.play_arrow),
-              onPressed: () => _playRecording(file.path),
-            ),
+              return ListTile(
+                title: Text(name),
+                onTap: () => _playRecording(file.path),
+                subtitle: Text(
+                  isPlaying ? 'Reproduzindo...' : 'Toque para reproduzir',
+                  style: TextStyle(
+                    color: isPlaying ? Colors.green : Colors.black,
+                  ),
+                ),
+                leading: IconButton(
+                  icon: Icon(isPlaying ? Icons.stop : Icons.play_arrow),
+                  onPressed: () => _playRecording(file.path),
+                ),
 
-            trailing: PopupMenuButton<String>(
-              onSelected:
-                  (value) =>
-                      value == 'delete'
-                          ? _deleteRecording(file.path)
-                          : _renameRecording(file.path),
+                trailing: PopupMenuButton<String>(
+                  onSelected:
+                      (value) =>
+                          value == 'delete'
+                              ? _deleteRecording(file.path)
+                              : _renameRecording(file.path),
 
-              itemBuilder:
-                  (context) => [
-                    PopupMenuItem(value: 'rename', child: Text('Renomear')),
-                    PopupMenuItem(value: 'delete', child: Text('Excluir')),
-                  ],
-            ),
-          );
-        },
-        separatorBuilder:
-            (context, index) => Divider(color: Colors.grey, height: 1),
+                  itemBuilder:
+                      (context) => [
+                        PopupMenuItem(value: 'rename', child: Text('Renomear')),
+                        PopupMenuItem(value: 'delete', child: Text('Excluir')),
+                      ],
+                ),
+              );
+            },
+            separatorBuilder:
+                (context, index) => Divider(color: Colors.grey, height: 1),
+          ),
+          Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.center,
+            spacing: 20,
+            children: [
+              Text('Streaming'),
+              ElevatedButton(
+                onPressed: startStream,
+                child: Text('Iniciar Stream'),
+              ),
+              _subscription == null
+                  ? Text('Stream não iniciado')
+                  : Text('Stream ativo'),
+              ElevatedButton(
+                onPressed: stopStream,
+                child: Text('Parar Stream'),
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }
