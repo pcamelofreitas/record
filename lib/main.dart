@@ -42,7 +42,7 @@ class _RecordOneState extends State<RecordOne> {
 
     Stream<Uint8List> stream = await record.startStream(
       RecordConfig(
-        encoder: AudioEncoder.wav,
+        encoder: AudioEncoder.pcm16bits,
         sampleRate: 16000,
         numChannels: 1,
       ),
