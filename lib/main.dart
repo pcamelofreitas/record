@@ -1,14 +1,22 @@
 import 'dart:async';
 import 'dart:io';
 import 'dart:typed_data';
+import 'package:audio_service/audio_service.dart';
 import 'package:flutter/material.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as p;
 import 'package:record/record.dart';
 import 'package:audioplayers/audioplayers.dart';
+import 'package:record_one/service.dart';
 import 'package:web_socket_channel/io.dart';
 
 void main() {
+  WidgetsFlutterBinding.ensureInitialized();
+  AudioService.init(
+    builder: () => TJAudioHandler(),
+    config: AudioServiceConfig(),
+  );
+
   runApp(MaterialApp(home: RecordOne()));
 }
 

@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name= é realmente não sei também mas to testando as possibildades por aqui no "viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Live Audio Stream</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 2rem;
+            background: #f7f9fc;
+            text-align: center;
+        }
+
+        audio {
+            width: 80%;
+            margin-top: 2rem;
+        }
+
+        .info {
+            color: #333;
+            font-size: 1.2rem;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>🔊 Transmissão de Áudio ao Vivo</h1>
+    <p class="info">A transmissão começará automaticamente se o stream estiver ativo.</p>
+
+    <audio controls autoplay>
+        <source src="http://localhost:8080/api/audio/live" type="audio/wav" />
+        Seu navegador não suporta áudio ao vivo via HTML5.
+    </audio>
+</body>
+
+</html>
