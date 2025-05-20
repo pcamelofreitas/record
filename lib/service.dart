@@ -8,8 +8,6 @@ class TJAudioHandler extends BaseAudioHandler {
   final _recorder = AudioRecorder();
   bool _initialized = false;
   String? _outputPath;
-  @override
-  
 
   Future<void> _init() async {
     if (_initialized) return;
