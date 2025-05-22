@@ -1,21 +1,34 @@
-import 'package:audio_service/audio_service.dart';
+import 'dart:io';
+
 import 'package:flutter/material.dart';
+import 'package:permission_handler/permission_handler.dart';
+import 'package:record_one/background_audio_service.dart';
+import 'package:record_one/notification_service.dart';
 import 'package:record_one/record_list_screen.dart';
 import 'package:record_one/schedule_record_screen.dart';
-import 'package:record_one/service.dart';
 import 'package:record_one/streaming_screen.dart';
 
-void main() {
+void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  AudioService.init(
-    builder: () => TJAudioHandler(),
-    config: AudioServiceConfig(
-      androidNotificationChannelName: 'Scheduled Recorder',
-      androidNotificationOngoing: true,
-    ),
-  );
 
+  await requestPermissions(); // Suas permissões existentes
+  await NotificationService.initialize(); // Inicializa flutter_local_notifications
+  await initializeService(); // In
   runApp(MaterialApp(home: RecordOne()));
+}
+
+Future<void> requestPermissions() async {
+  var microphoneStatus = await Permission.microphone.request();
+  if (microphoneStatus.isDenied || microphoneStatus.isPermanentlyDenied) {
+    print("Permissão de microfone negada.");
+  }
+
+  if (Platform.isAndroid) {
+    var notificationStatus = await Permission.notification.request();
+    if (notificationStatus.isDenied) {
+      print("Permissão de notificação negada.");
+    }
+  }
 }
 
 class RecordOne extends StatefulWidget {
